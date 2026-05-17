@@ -7,25 +7,31 @@ ObjectModel {
 	id: root
 
 	required property SwipeView view
-	readonly property list<SwipeViewPage> pages
-		: showBoatPage && showLevelsPage ? [ boatPageLoader.item, briefPage, overviewPage, levelsPageLoader.item, notificationsPage, settingsPage ]
-		: showBoatPage ? [ boatPageLoader.item, briefPage, overviewPage, notificationsPage, settingsPage ]
-		: showLevelsPage ? [ briefPage, overviewPage, levelsPageLoader.item, notificationsPage, settingsPage ]
-		: [ briefPage, overviewPage, notificationsPage, settingsPage ]
+	readonly property list<SwipeViewPage> pages: {
+		let p = []
+		if (showBoatPage) p.push(boatPageLoader.item)
+		p.push(briefPage)
+		p.push(overviewPage)
+		if (showLevelsPage) p.push(levelsPageLoader.item)
+		if (showSwitchesPage) p.push(switchesPageLoader.item)
+		p.push(notificationsPage)
+		p.push(settingsPage)
+		return p
+	}
 	readonly property bool showLevelsPage: levelsPageLoader.active && !!levelsPageLoader.item
+	readonly property bool showSwitchesPage: switchesPageLoader.active && !!switchesPageLoader.item
 	readonly property bool showBoatPage: boatPageLoader.active && !!boatPageLoader.item
 	readonly property int tankCount: Global.tanks ? Global.tanks.totalTankCount : 0
 	readonly property int environmentInputCount: Global.environmentInputs ? Global.environmentInputs.model.count : 0
+	readonly property int switchGroupCount: Global.switches ? Global.switches.groups.count : 0
 
 	readonly property bool completed: _completed
 		&& Global.dataManagerLoaded
 		&& Global.systemSettings
 		&& Global.tanks
 		&& Global.environmentInputs
-		&& ((boatPageLoader.active && levelsPageLoader.active) ? pages.length === 6
-		  : boatPageLoader.active ? pages.length === 5
-		  : levelsPageLoader.active ? pages.length === 5
-		  : pages.length === 4)
+		&& Global.switches
+		&& pages.length === (4 + (showBoatPage ? 1 : 0) + (showLevelsPage ? 1 : 0) + (showSwitchesPage ? 1 : 0))
 
 	property bool _completed: false
 
@@ -69,6 +75,15 @@ ObjectModel {
 
 		active: root.tankCount > 0 || root.environmentInputCount > 0
 		sourceComponent: LevelsPage {
+			view: root.view
+		}
+	}
+
+	Loader {
+		id: switchesPageLoader
+
+		active: root.switchGroupCount > 0
+		sourceComponent: VirtualSwitchesPage {
 			view: root.view
 		}
 	}

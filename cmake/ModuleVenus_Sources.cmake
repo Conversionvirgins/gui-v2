@@ -353,6 +353,7 @@ set (VictronVenusOS_QML_MODULE_SOURCES
     pages/PageManager.qml
     pages/SettingsPage.qml
     pages/TanksTab.qml
+    pages/VirtualSwitchesPage.qml
     pages/controlcards/ESSCard.qml
     pages/controlcards/EVCSCard.qml
     pages/controlcards/GeneratorCard.qml
@@ -400,6 +401,15 @@ set (VictronVenusOS_QML_MODULE_SOURCES
     pages/settings/PageSettingsCGwacs.qml
     pages/settings/PageSettingsCGwacsOverview.qml
     pages/settings/PageSettingsConnectivity.qml
+    pages/settings/PageSettingsConversion.qml
+    pages/settings/PageSettingsConversionBackground.qml
+    pages/settings/PageOctopusEnergy.qml
+    pages/settings/PageOctopusAccount.qml
+    pages/settings/PageCampervanOverview.qml
+    pages/settings/PageEnergyLog.qml
+    pages/settings/PageAlerts.qml
+    pages/settings/PageAiAssistant.qml
+    pages/settings/PageSystemInfo.qml
     pages/settings/PageSettingsDisplayAndAppearance.qml
     pages/settings/PageSettingsDisplayBrief.qml
     pages/settings/PageSettingsDisplayMinMax.qml
@@ -739,6 +749,7 @@ set(VictronVenusOS_RESOURCES
     fonts/Roboto-Regular.ttf
     images/acloads.svg
     images/alternator.svg
+    images/bms-technologies-logo.png
     images/breadcrumb_lhs.svg
     images/breadcrumb_rhs.svg
     images/icon_arrow.svg
