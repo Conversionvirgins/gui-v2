@@ -58,6 +58,23 @@ SwipeViewPage {
 		id: gaugeModel
 	}
 
+	// BMS Technologies branding
+	VeQuickItem {
+		id: _logoEnabled
+		uid: !!Global.systemSettings ? Global.systemSettings.serviceUid + "/Settings/Gui/Conversion/LogoEnabled" : ""
+	}
+	Image {
+		source: "qrc:/images/bms-technologies-logo.png"
+		anchors.bottom: parent.bottom
+		anchors.bottomMargin: 8
+		anchors.right: parent.right
+		anchors.rightMargin: 12
+		height: 48
+		fillMode: Image.PreserveAspectFit
+		opacity: root._gaugeLabelOpacity
+		visible: root.state !== "panelOpened" && _logoEnabled.value === 1
+	}
+
 	Loader {
 		id: mainGauge
 

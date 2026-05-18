@@ -96,6 +96,13 @@ SwipeViewPage {
 			}
 
 			SettingsListNavigation {
+				text: "Conversion Virgins Tools"
+				caption: "Theme, branding, appearance"
+				pageSource: "/pages/settings/PageSettingsConversion.qml"
+				iconSource: "qrc:/images/icon_general_32.png"
+			}
+
+			SettingsListNavigation {
 				//% "Debug & Develop"
 				text: qsTrId("settings_debug_and_develop")
 				//% "Profiling tools, debug statistics, app version..."

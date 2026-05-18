@@ -15,7 +15,29 @@ Window {
 	//% "Venus OS GUI"
 	//~ Context only shown on desktop systems
 	title: qsTrId("venus_os_gui")
-	color: Global.allPagesLoaded && !!guiLoader.item ? guiLoader.item.mainView.backgroundColor : Theme.color_page_background
+	color: {
+		if (Global.allPagesLoaded && _conversionBgEnabled.value === 1
+				&& _conversionBgColor.value && _conversionBgColor.value !== "") {
+			return _conversionBgColor.value
+		}
+		return Global.allPagesLoaded && !!guiLoader.item
+			? guiLoader.item.mainView.backgroundColor
+			: Theme.color_page_background
+	}
+
+	// Conversion custom background settings
+	VeQuickItem {
+		id: _conversionBgEnabled
+		uid: BackendConnection.serviceUidForType("settings") + "/Settings/Gui/Conversion/BackgroundEnabled"
+	}
+	VeQuickItem {
+		id: _conversionBgColor
+		uid: BackendConnection.serviceUidForType("settings") + "/Settings/Gui/Conversion/BackgroundColor"
+	}
+	VeQuickItem {
+		id: _conversionBgImagePath
+		uid: BackendConnection.serviceUidForType("settings") + "/Settings/Gui/Conversion/BackgroundImagePath"
+	}
 
 	width: Qt.platform.os != "wasm" ? Theme.geometry_screen_width/scaleFactor : Screen.width/scaleFactor
 	height: Qt.platform.os != "wasm" ? Theme.geometry_screen_height/scaleFactor : Screen.height/scaleFactor
@@ -169,6 +191,20 @@ Window {
 
 	Loader {
 		id: guiLoader
+
+		// Conversion: custom background image layer
+		Image {
+			id: conversionBackgroundImage
+			anchors.fill: parent
+			visible: _conversionBgEnabled.value === 1
+					 && _conversionBgImagePath.value
+					 && _conversionBgImagePath.value !== ""
+			source: visible ? _conversionBgImagePath.value : ""
+			fillMode: Image.PreserveAspectCrop
+			z: -1
+			opacity: status === Image.Ready ? 1.0 : 0.0
+			Behavior on opacity { NumberAnimation { duration: 300 } }
+		}
 
 		// Receive key events if key navigation is enabled.
 		focus: !consoleLoader.active
