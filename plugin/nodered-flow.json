@@ -1,0 +1,64 @@
+[
+    {
+        "id": "conv-inject",
+        "type": "inject",
+        "name": "Publish on startup",
+        "props": [{"p": "payload"}],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 3,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 100,
+        "wires": [["conv-func"]]
+    },
+    {
+        "id": "conv-func",
+        "type": "function",
+        "name": "Build plugin messages",
+        "func": "const portalId = 'c0619aba0c76';\nconst pluginName = 'conversion';\nconst pluginJson = '{\"name\":\"conversion\",\"version\":\"1.0\",\"minRequiredVersion\":\"\",\"maxRequiredVersion\":\"\",\"translations\":[],\"integrations\":[{\"type\":1,\"url\":\"qrc:/conversion/ConversionSettings.qml\"}],\"resource\":\"cXJlcwAAAAMAAAP8AAAAGAAAA7AAAAABAAADlAAADAh4nLVWbW/aSBD+7Ej5D3M+qUpylW1Ik/aQ8iFwDa3UXGgg6KSqHxZ7gFXWu6v1mhZF/Pfb9Ss25bj0LhYgMzPPvPmZWftnx0dnZzAQfIUqoYLDGLWmfJHAiKULynN1mmgRw4yEjwslUh4BsV8pkSjCQ4SkBM2FggGqmYDhXxBWXhPP+PGPj46PaCyF0vBZf05p+Fj9n9JQK8G9KfI0uRtbyxFZIDwdHzk06oESQluho5BEgrM1SCUkKr2GFVEmEhNqpNDkkfTgi7FznoCTGHvg/oFzkjINJ5Mlxnjqvs6tjcbcrghLjVEAm9ctEEr4k6zWW+a/Btedy+67GtVpowZLokJB2Daoc9257r6vQd2dUEQ9wgSbqKDfDbpva9R5G3VLI04XSw2jVEmGzYhBI+KbNvZGmE5psIFb5d0E1zXuoo0bM6Ibkbo355dvghpx+cPa7jFqpXcRXNSgt23QXYiEQ98oG9lddH4/3+rIuxz2NWPFFDM6fdQYZ5TJODNbDCzYCq0otbIhEzPCvGSdGGlJdS9BtaIhPtAIfgPXL+X+MKV+PRp+v+J/5tg1Xjf/FP5jbCg8Inr5EilUzg+mMaiH48V6kbuvUxkqElHk+hNN9JTitzyfWETIembYEzpjaJO5tRKrtGqnDGZRH8ygo8pxjqPxuzYsqKOCRbqZclOgLWr8jepwWaJslWG2u/qLXNPw9pBgod5abblPJyKa2AS9/7NV7zkxdUfNtA8WnTUY6g6bSyqco1IYFa1sl+mFSwwfMdrpz715LKKfai340KQk9/c3LCn+3HAv07oWy8wlpDYmtzml7PngbZ8CXkzkyTzloTU6kadloeYA0ani8AQRTSQj6x5Izy6earFIL7uBTQ7YnBbh+F0WcMCoLbUHlXPKI/xeB6BzyEVwdXUFQa1wthaSaYCe2jAnrlsEcDaALMED5juFfslifc1llasi9+cRbevpZ9vlv5JtYtzeUGRRK07mHGSxu57NL/PUQlwKZgqY5A59Szk/x/j1KHuSL15ynBsreLf0VtUTKn+q3ATNe1RE1Loo9kEyQSKgWRO1gEbxsKIExuMPuxnlQ99eLcy8weWu3B9Hu8dYrH6KCeZ69ap9ChaztVfxixkZtxzwetbaxjvT8685fl9vkIPdyWxti6P8FTLZ26OtrVQnXQ5yq0cVFasignJsd87q/Tb7lsjBTtVLIf8xX/P5GxVwpPgACgzE1P4AYwBvAG4AdgBlAHIAcwBpAG8AbgAWAOB53ABDAG8AbgB2AGUAcgBzAGkAbwBuAFMAZQB0AHQAaQBuAGcAcwAuAHEAbQBsAAAAAAACAAAAAQAAAAEAAAAAAAAAAAAAAAAAAgAAAAEAAAACAAAAAAAAAAAAAAAaAAEAAAABAAAAAAAAAZ3hBhpp\"}';\n\nconst base = `N/${portalId}/platform/0/GuiCustomizations`;\n\nconst msg1 = {\n    topic: `${base}/Applist`,\n    payload: JSON.stringify({value: [pluginName]}),\n    retain: true,\n    qos: 1\n};\n\nconst msg2 = {\n    topic: `${base}/Apps/${pluginName}/info`,\n    payload: JSON.stringify({value: pluginJson}),\n    retain: true,\n    qos: 1\n};\n\nreturn [msg1, msg2];\n",
+        "outputs": 2,
+        "x": 380,
+        "y": 100,
+        "wires": [["conv-mqtt-applist"], ["conv-mqtt-info"]]
+    },
+    {
+        "id": "conv-mqtt-applist",
+        "type": "mqtt out",
+        "name": "Publish Applist",
+        "topic": "",
+        "qos": "1",
+        "retain": "true",
+        "broker": "conv-mqtt-broker",
+        "x": 620,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "conv-mqtt-info",
+        "type": "mqtt out",
+        "name": "Publish Plugin Info",
+        "topic": "",
+        "qos": "1",
+        "retain": "true",
+        "broker": "conv-mqtt-broker",
+        "x": 630,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "conv-mqtt-broker",
+        "type": "mqtt-broker",
+        "name": "Cerbo Local MQTT",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "conversion-plugin-publisher",
+        "usetls": false,
+        "compatmode": false,
+        "keepalive": "60",
+        "cleansession": true
+    }
+]
