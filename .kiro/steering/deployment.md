@@ -2,117 +2,124 @@
 inclusion: manual
 ---
 
-# Cerbo GX Deployment Guide
+# Conversion Virgins GUI-v2 Deployment Guide
 
 ## Architecture Overview
 
-The Victron Cerbo GX has two GUI paths:
-- **Local display**: Runs a compiled ARM binary (`venus-gui-v2`) that loads QML from the filesystem at `/opt/victronenergy/gui-v2/Victron/VenusOS/`
-- **Web/Remote Console (WASM)**: A WebAssembly build served from `/var/www/venus/gui-v2/` — this is what you see in the browser
+The Cerbo GX has two GUI paths:
+- **Local display**: Loads from compiled binary + QML files on disk at `/opt/victronenergy/gui-v2/Victron/VenusOS/`
+- **Web/Remote Console (WASM)**: Loads from compiled WebAssembly at `/var/www/venus/gui-v2/`
 
-Editing QML files on disk only affects the **local display**. To change the **web view**, you must rebuild the WASM binary.
+Firmware updates will overwrite BOTH. To persist customizations, we rebuild and redeploy after updates.
 
 ## Infrastructure
 
-| Component | IP | User | Password |
-|-----------|-----|------|----------|
-| Main Cerbo (with screen) | 192.168.86.197 | root | Lauren1602 |
-| Test Cerbo (no screen) | 192.168.86.166 | root | Lauren1602 |
-| Proxmox Host | 192.168.86.233 | root | (via web UI) |
-| Ubuntu Build VM (VM 106) | 192.168.86.232 | victron | Lauren1602 |
+| System | IP | User | Password | Purpose |
+|--------|-----|------|----------|---------|
+| Proxmox Host | 192.168.86.233 | root | - | VM host |
+| Ubuntu Build VM (106) | 192.168.86.232 | victron | Lauren1602 | WASM builds |
+| Main Cerbo (einstein) | 192.168.86.197 | root | Lauren1602 | Production with screen |
+| Test Cerbo | 192.168.86.166 | root | Lauren1602 | Testing (no screen) |
 
 ## Build Server Setup
 
-- Ubuntu 24.04 VM on Proxmox (VM ID 106, hostname "victron")
-- Repo location: `/home/victron/gui-v2`
-- Qt 6.8.3 WASM toolchain at `/opt/venus/build-gx-hostedtoolcache/`
+- VM 106 on Proxmox (Ubuntu 24.04)
+- Repo at: `/home/victron/gui-v2`
+- Qt 6.8.3 WASM tools at: `/opt/venus/build-gx-hostedtoolcache/`
 - SSH key auth configured from Windows machine
-- No GX (ARM) SDK installed — only WASM builds are possible from here
 
 ## How to Build and Deploy WASM
 
-### From the build server (192.168.86.232):
+### 1. SSH into build server
+```bash
+ssh victron@192.168.86.232
+```
 
+### 2. Pull latest changes
 ```bash
 cd /home/victron/gui-v2
 git fetch conversionvirgins
-git checkout feature/virtual-switches-page  # or whichever branch
-git pull
+git checkout feature/virtual-switches-page
+git pull conversionvirgins feature/virtual-switches-page
+git submodule update --init
+```
+
+### 3. Build WASM
+```bash
+cd /home/victron/gui-v2
+rm -rf build-wasm
 bash scripts/build-wasm.sh
 ```
+Build takes ~6 minutes.
 
-### Upload to a Cerbo manually:
-
+### 4. Deploy to Cerbo
 ```bash
-# Make filesystem writable
+# For test Cerbo (166):
 sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@192.168.86.166 '/opt/victronenergy/swupdate-scripts/remount-rw.sh'
-
-# Upload WASM files
 sshpass -p 'Lauren1602' scp -o StrictHostKeyChecking=no -r /home/victron/gui-v2/build-wasm_files_to_copy/wasm/* root@192.168.86.166:/var/www/venus/gui-v2/
-
-# Restart vrmlogger (makes changes visible in VRM portal)
 sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@192.168.86.166 'svc -t /service/vrmlogger'
+
+# For main Cerbo (197):
+sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@192.168.86.197 '/opt/victronenergy/swupdate-scripts/remount-rw.sh'
+sshpass -p 'Lauren1602' scp -o StrictHostKeyChecking=no -r /home/victron/gui-v2/build-wasm_files_to_copy/wasm/* root@192.168.86.197:/var/www/venus/gui-v2/
+sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@192.168.86.197 'svc -t /service/vrmlogger'
 ```
 
-Replace `192.168.86.166` with `192.168.86.197` for the main Cerbo.
-
-### From Kiro (automated via SSH):
-
-```
-ssh victron@192.168.86.232 "cd /home/victron/gui-v2 && bash scripts/build-wasm.sh 2>&1"
-ssh victron@192.168.86.232 "sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@<CERBO_IP> '/opt/victronenergy/swupdate-scripts/remount-rw.sh' && sshpass -p 'Lauren1602' scp -o StrictHostKeyChecking=no -r /home/victron/gui-v2/build-wasm_files_to_copy/wasm/* root@<CERBO_IP>:/var/www/venus/gui-v2/ && sshpass -p 'Lauren1602' ssh -o StrictHostKeyChecking=no root@<CERBO_IP> 'svc -t /service/vrmlogger'"
-```
-
-## How to Deploy QML-only Changes (Local Display)
-
-For changes that only affect the local screen (not web view):
-
-1. File must be UTF-8, no BOM, Unix line endings (LF)
-2. The QML type must be registered in `/opt/victronenergy/gui-v2/Victron/VenusOS/qmldir`
-3. The filesystem must be remounted read-write first
-
+### 5. Deploy QML to local display (main Cerbo only)
+The local display also needs the QML files + qmldir entry:
 ```bash
-# From build server to Cerbo:
-sshpass -p 'Lauren1602' ssh root@<CERBO_IP> '/opt/victronenergy/swupdate-scripts/remount-rw.sh'
-sshpass -p 'Lauren1602' scp file.qml root@<CERBO_IP>:/opt/victronenergy/gui-v2/Victron/VenusOS/pages/
-sshpass -p 'Lauren1602' ssh root@<CERBO_IP> 'svc -t /service/start-gui'
+sshpass -p 'Lauren1602' ssh root@192.168.86.197 '/opt/victronenergy/swupdate-scripts/remount-rw.sh'
+
+# Add VirtualSwitchesPage to qmldir (only needed once, or after firmware update):
+sshpass -p 'Lauren1602' ssh root@192.168.86.197 'grep -q VirtualSwitchesPage /opt/victronenergy/gui-v2/Victron/VenusOS/qmldir || echo "VirtualSwitchesPage 2.0 pages/VirtualSwitchesPage.qml" >> /opt/victronenergy/gui-v2/Victron/VenusOS/qmldir'
+
+# Copy the page file:
+sshpass -p 'Lauren1602' scp /tmp/VirtualSwitchesPage.qml root@192.168.86.197:/opt/victronenergy/gui-v2/Victron/VenusOS/pages/
+
+# Copy modified SwipePageModel:
+sshpass -p 'Lauren1602' scp /tmp/SwipePageModel.qml root@192.168.86.197:/opt/victronenergy/gui-v2/Victron/VenusOS/components/
+
+# Restart GUI:
+sshpass -p 'Lauren1602' ssh root@192.168.86.197 'svc -t /service/start-gui'
 ```
 
-## Adding a New QML Page to the Navigation
+## After a Firmware Update
 
-To add a new page to the main swipe navigation:
+When Victron pushes a firmware update, it will overwrite the WASM and QML files. To restore:
 
-1. Create the page QML file (e.g., `pages/VirtualSwitchesPage.qml`)
-2. Add it to `cmake/ModuleVenus_Sources.cmake`
-3. Modify `components/SwipePageModel.qml` to include the page
-4. Rebuild WASM and deploy
+1. SSH into build server (192.168.86.232)
+2. Check if upstream has new changes: `git fetch origin && git log origin/main --oneline -5`
+3. If needed, rebase our branch: `git rebase origin/main`
+4. Rebuild WASM: `bash scripts/build-wasm.sh`
+5. Redeploy to Cerbo(s) using the commands above
 
-For the **local display** (filesystem-loaded QML), you also need to:
-- Add the type to `/opt/victronenergy/gui-v2/Victron/VenusOS/qmldir`:
-  ```
-  VirtualSwitchesPage 2.0 pages/VirtualSwitchesPage.qml
-  ```
+## Key Files
 
-## Important Notes
+| File | Purpose |
+|------|---------|
+| `pages/VirtualSwitchesPage.qml` | The switches page UI |
+| `components/SwipePageModel.qml` | Navigation model (adds switches to swipe pages) |
+| `cmake/ModuleVenus_Sources.cmake` | Build system registration |
+| `Main.qml` | Custom background support |
+| `pages/SettingsPage.qml` | Custom settings menu entries |
+| `pages/settings/PageSettingsConversion.qml` | Conversion background settings |
+| `plugin/` | GUI plugin for Cerbo (loaded via /data/apps/) |
 
-- The Cerbo firmware version matters. v1.3.3 uses `navButtonText`/`navButtonIcon`, newer versions use `title`/`iconSource`
-- The main Cerbo is v3.80~9 (gui v1.3.3), test Cerbo is v3.73~1
-- `remount-rw.sh` only persists while the SSH session is active or until reboot
-- The WASM build takes ~6 minutes on the build server
-- Always hard-refresh browser (Ctrl+Shift+R) after deploying WASM changes
-- The conversion plugin at `/data/apps/enabled/conversion/gui-v2/` provides the custom settings page via the plugin system (separate from filesystem QML)
+## Plugin System (survives firmware updates)
 
-## Git Remotes on Build Server
+The plugin at `/data/apps/enabled/conversion/gui-v2/` survives firmware updates because it's on the data partition. It provides:
+- Custom settings page (ConversionSettings.qml)
+- Loaded automatically by the GUI binary
 
+To update the plugin:
+```bash
+scp plugin/ConversionSettings.qml root@CERBO_IP:/data/apps/enabled/conversion/gui-v2/
 ```
-origin    https://github.com/victronenergy/gui-v2.git (upstream)
-conversionvirgins    https://github.com/Conversionvirgins/gui-v2.git (your fork)
-```
 
-## File Encoding (Windows → Linux)
+## Notes
 
-When uploading QML files from Windows to the Cerbo:
-- PowerShell's `>` operator creates UTF-16 files — **do not use it**
-- Use `[System.IO.File]::WriteAllText()` with `UTF8Encoding($false)` for no BOM
-- Replace `\r\n` with `\n` before writing
-- Or use `scp` from the build server (Linux) which handles encoding correctly
+- The Cerbo filesystem is read-only by default. Always run `remount-rw.sh` before writing.
+- The WASM build is what the web/remote console uses.
+- The local display reads QML from `/opt/victronenergy/gui-v2/Victron/VenusOS/` but types must be registered in the `qmldir` file.
+- Files uploaded from Windows MUST be UTF-8 with Unix line endings (LF, not CRLF). Use the build server for file transfers.
+- The `octopus/` directory contains API keys and is excluded from git pushes.
